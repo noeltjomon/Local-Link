@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stylish Login Page</title>
+    <style>
+        /* Resetting margins and paddings */
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+        }
+
+        /* Body background with dark gradient */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+        }
+
+        /* Login box styling */
+        .login-box {
+            background: linear-gradient(135deg, #fff59d, #fdd835);
+            
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 300px;
+        }
+
+        .login-box h2 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #212121;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .login-box input[type="text"] {
+            background: #fff;
+            color: #212121;
+        }
+
+        .login-box input[type="submit"] {
+            background: #212121;
+            color: #fff59d;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .login-box input[type="submit"]:hover {
+            background: #fff59d;
+            color: #212121;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>Login</h2>
+        <form action="/authenticate" id = "form" method="POST">
+            <input id = "usertext" type="text" placeholder="Username" name = "Username" required>
+            <input  type="submit" value="Join">
+        </form>
+        
+    </div>
+<script>
+var form = document.getElementById('form')
+var usertext = document.getElementById('usertext');
+form.addEventListener('submit',(event)=>{
+    event.preventDefault();
+    var username = usertext.value;
+    var resultJson;
+    const res =  fetch("/authenticate",{method:"POST",
+    headers:{
+            "Content-Type": "application/json"
+        },
+    body: JSON.stringify({
+        validation:"true",
+        user:username})}).then((response)=>{
+        return result = response.json()}).then((result)=>{
+            if(result.unique == "true"){
+            
+        form.submit()
+        }else{
+        var errorEle = document.createElement('p');
+        errorEle.innerText = "username is taken"
+        var loginbox = document.getElementsByClassName('login-box');
+        loginbox[0].appendChild(errorEle);}
+        })
+        
+    }
+        
+    
+)
+
+</script>
+</body>
+</html>
