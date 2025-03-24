@@ -66,6 +66,7 @@
             background: linear-gradient(135deg, #0f1a34, #1c2740);
             display: flex;
             flex-direction: column;
+            position: relative;
         }
 
         /* Chat Header */
@@ -123,6 +124,9 @@
             padding: 10px 20px;
             background: #f5f5f5;
             border-top: 1px solid #ddd;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
         }
 
         .chat-input input {
@@ -149,7 +153,92 @@
         .chat-input button:hover {
             background: #ffcc00;
         }
-    
+        .voice-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers everything horizontally */
+    justify-content: center; /* Centers everything vertically */
+    height: 100%; /* Ensures it takes the full height */
+    width:100%;
+    position: relative;
+}
+        .voice-chat-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 20px;
+            justify-content: center;
+        }
+
+        .user-card {
+            width: 120px;
+            height: 120px;
+            background: #ffe600;
+            color: #000000;
+            font-size: 30px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .mute-icon {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 20px;
+            height: 20px;
+            background: red;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .unmute-icon {
+            background: green;
+        }
+        .button-container {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center; 
+    gap: 10px;
+}
+
+.disconnect, .connect {
+    width: 150px; 
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+}
+
+
+.disconnect, .connect {
+    width: 150px; /* Same width */
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.disconnect {
+    background-color: red;
+    color: white;
+}
+
+.connect {
+    background-color: green;
+    color: white;
+}
+
     </style>
 </head>
 <body>
@@ -157,99 +246,38 @@
         <!-- Sidebar -->
         <div class="sidebar">
             <h3>Chats</h3>
-            <div class="contact">Group Chat</div>
-            <div class="contact">Voice Chat</div>
+            <div class="contact" id = "group">Group Chat</div>
+            <div class="contact"  id = "voice">Voice Chat</div>
         </div>
 
-        <!-- Chat Section -->
-        <div class="chat-section">
-            <!-- Chat Header -->
+        <div class="chat-section" id = "chat-container">
             <div class="chat-header">Group Chat</div>
 
-            <!-- Chat Messages -->
             <div class="chat-messages">
                
             </div>
 
-            <!-- Chat Input -->
-            <div class="chat-input">
+            <div class="chat-input" >
                 <input type="text" id = "chattext" placeholder="Type a message...">
                 <button id = "sendButton">Send</button>
             </div>
+        
+        </div>
+        <div class = "voice-message" id = "voice-chat-container" style="display: none;">
+            <div class="voice-chat-container" id="voice-users">
+                <!--<div class="user-card">Noel <div class="mute-icon"></div></div>
+                <div class="user-card">Vishnu <div class="mute-icon"></div></div>
+                <div class="user-card">Sion <div class="mute-icon"></div></div>-->
+            </div>
+            <div class="button-container">
+                <button class="connect" id="connectButton">Connect</button>
+                <button class="disconnect" id="disconnectButton">Disconnect</button>
+            </div>
+            
         </div>
     </div>
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-        var sidebarEle = document.getElementsByClassName('sidebar');
-
-    
-        document.addEventListener("DOMContentLoaded", () => {
-            
-        });
-    
-        var sendB = document.getElementById("sendButton"); 
-        var sendText = document.getElementById("chattext");
-        var chatMessages = document.querySelector('.chat-messages'); 
-        sendB.addEventListener('click', () => {
-            var msg = sendText.value.trim(); 
-            if (msg === "") return; 
-            socket.emit('msg', msg);
-            sendText.value = ""; // Clear input field after sending
-        });
-    
-        socket.on('message', (msg, senderID, username) => {
-            var newText = document.createElement('p');
-            if (socket.id === senderID) {
-                newText.textContent = msg;
-                newText.className = "message sent";
-            } else {
-                newText.textContent = username + ": " + msg;
-                newText.className = "message received";
-            }
-    
-            chatMessages.appendChild(newText);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        });
-        socket.on('new-user',(username)=>{
-            var contacts = document.getElementsByClassName('contact')
-            Array.from(contacts).forEach(contact => {
-                let i = contact.textContent;
-                if(username==i){
-                    return 
-                }
-            });
-            var newContact = document.createElement('div');
-            newContact.className = 'contact'
-            newContact.innerText =  username;
-            sidebarEle[0].appendChild(newContact)
-
-        })
-        socket.on('current-users',(users,username)=>{
-            for(var user in users){
-                if(user!==username){
-                var newContact = document.createElement('div');
-            newContact.className = 'contact'
-            newContact.innerText =  user;
-            sidebarEle[0].appendChild(newContact)}
-            }
-        })
-        socket.on('user-disconnected',(username)=>{
-            var contacts = document.getElementsByClassName('contact')
-            Array.from(contacts).forEach(contact => {
-                let i = contact.textContent;
-                if(username==i){
-                    sidebarEle[0].removeChild(contact)
-                    console.log('hello')
-                }
-            });
-        })
-        socket.on('connect_error',(error)=>{
-            if(error.message == "Authentication Error"){
-                window.location.href = '/login';
-            }
-        })
-    </script>
+    <script src = "/chat/chat.js"></script>
     
 </body>
 </html>
