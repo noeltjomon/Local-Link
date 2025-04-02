@@ -8,6 +8,7 @@ var localAudio;
 var constraints = {video:false,audio:true}
 var peers = {}
 var currentUsersEle;
+var currentUsers = []
 document.addEventListener("DOMContentLoaded", () => {
     gcCont = document.getElementById("chat-container")
     vcCont = document.getElementById("voice-chat-container")
@@ -44,13 +45,23 @@ voiceChat.addEventListener('click',()=>{
     gcCont.style.display = "none"
     vcCont.style.display = "block"
     socket.emit('getVCusers');
+    socket.emit("EnterVR")
 })
 connectButton.addEventListener('click',async ()=>{
     await setUpLocalUserMedia();
+    connectButton.disabled = true
+    disconnectButton.disabled = false;
+    disconnectButton.style.background = "#FF0000"
+    connectButton.style.background = "#808080"
 })
 disconnectButton.addEventListener('click',()=>{
     socket.emit('leave-vc')
     document.getElementById("Me").remove()
+    disconnectButton.disabled = true
+    connectButton.disabled = false;
+    connectButton.style.background = "#00FF00"
+    disconnectButton.style.background = "#808080"
+    closeConnections();
 })
 //End
 
@@ -58,6 +69,7 @@ disconnectButton.addEventListener('click',()=>{
 // Socket.io event handlers
 
 socket.on('message', (msg, senderID, username) => {
+    console.log("here "+username)
     var newText = document.createElement('p');
     if (socket.id === senderID) {
         newText.textContent = msg;
@@ -85,13 +97,38 @@ socket.on('new-user',(username)=>{
 
 })
 socket.on('current-users',(users,username)=>{
-    for(var user in users){
-        if(user!==username){
+    users.forEach(user=>{
+        if(user.Name!==username){
         var newContact = document.createElement('div');
     newContact.className = 'contact'
-    newContact.innerText =  user;
+    newContact.innerText =  user.Name;
     sidebarEle[0].appendChild(newContact)}
+})}
+)
+socket.on('pastMsgs',(msgs,currentUser)=>{
+     
+    console.log(msgs)
+    msgs.forEach((msgDict)=>{
+        var newText = document.createElement('div');
+        var sendername = null;
+        newText.className = "message-container"
+    if (msgDict.Sender === currentUser) {
+        newText.textContent = msgDict.Msg;
+        newText.className = "message sent";
+    } else {
+        sendername = document.createElement('span')
+        sendername.classList.add('sender-name')
+        sendername.classList.add('sent')
+        sendername.textContent = msgDict.Sender;
+        newText.textContent =  msgDict.Msg;
+        newText.className = "message received";
+        chatMessages.appendChild(sendername)
     }
+   
+    chatMessages.appendChild(newText);
+  
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    })
 })
 socket.on('user-disconnected',(username)=>{
     var contacts = document.getElementsByClassName('contact')
@@ -137,8 +174,9 @@ for(let user of userList){
 }}
 })
 
-socket.on('exited-vc',(username)=>{
+socket.on('exit.vc',(username)=>{
     
+    currentUsersEle = document.getElementsByClassName('user-card')
     if(currentUsersEle!= undefined){
         for(let ele of currentUsersEle){
             if(ele.textContent == username){
@@ -257,5 +295,17 @@ function initializePeer(id,username){
     
 
     peers[id] = peer     
+}
+
+function closeConnections(){
+for(let [name,rtcpeer] of Object.entries(peers)){
+    if(rtcpeer){
+        rtcpeer.close()
+    }
+}
+if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+}
+peers = {}
 }
 //End

@@ -8,13 +8,15 @@ const checkAuth = require('./routes/auth')
 const session = require('express-session')
 const app = express()
 const fs = require('fs')
-
 const privateKey = fs.readFileSync('key.pem', 'utf8');
 const certificate = fs.readFileSync('cert.pem', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
+const mongo = require('./mongo')
+
+
 
 var server = https.createServer(credentials,app)
-users = {}
+//users = {}
  
 var sessionMiddleware = session({
     secret:"very secret",
@@ -37,20 +39,30 @@ io.engine.use(sessionMiddleware)
 
 io.use((socket,next)=>{
     var session = socket.request.session;
+    
     if(!session || !session.username){
         return next(new Error("Authentication Error"))
     }
+    
     next()
 })
-io.on('connection',(socket)=>{
-    users[socket.request.session.username] = socket.id;
+io.on('connection',async (socket)=>{
+    db = await mongo.connectDB()
+    let mongoUsers = db.collection('Users')
+    let mongoMsgs = db.collection("Messages")
+    //users[socket.request.session.username] = socket.id
+    mongoUsers.updateOne({Name:socket.request.session.username},{$set:{sock_id:socket.id,online:true}})
+
     var username = socket.request.session.username
     socket.data.username = username
+    let users = await mongoUsers.find({online:true},{ projection: { Name: 1, _id: 0 } }).toArray()
     socket.broadcast.emit('new-user',socket.request.session.username)
-    socket.emit('current-users',users,username);
-
+    let pastMsgs = await mongoMsgs.find({},{projection:{_id:0}}).toArray();
+    socket.emit('current-users',users,username); 
+    socket.emit('pastMsgs',pastMsgs,username)
     socket.on('msg',(msg)=>{
         io.emit('message',msg,socket.id,username);
+        mongoMsgs.insertOne({Msg:msg,Sender:socket.data.username})
     });
 
     socket.on('getVCusers',()=>{
@@ -72,11 +84,14 @@ io.on('connection',(socket)=>{
         socket.join("VoiceRoom")
         socket.to('VoiceRoom').emit('CreateConnection',socket.id,socket.data.username)
     })
-    socket.on('leave-vc',()=>{
+    socket.on('leave-vc',async ()=>{
+        await socket.to('VoiceRoom').emit('exit.vc',username)
+        await socket.broadcast.emit('exit.vc',username)
         socket.leave('VoiceRoom')
-        socket.emit('exited-vc',username)
+
     })
     socket.on('disconnect',()=>{
+        mongoUsers.updateOne({Name:username},{$set:{online:false}})
         io.emit('user-disconnected',username)
     })
     socket.on('icecandidate',(candidate,socketid)=>{ //socketid->new-user
