@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
     vcCont = document.getElementById("voice-chat-container")
     vcCont.style.display = "none"
     gcCont.style.display = "block"
+    const chatContainer = document.querySelector(".chat-container");
+    chatContainer.scrollTop = chatContainer.scrollHeight;
 });
     
     
@@ -30,7 +32,12 @@ groupChat.addEventListener('click',()=>{
      vcCont.style.display = "none"
     gcCont.style.display = "block"
 })
-
+document.getElementById("fileInput").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        uploadFile(file);
+    }
+});
 sendB.addEventListener('click', () => {
     var msg = sendText.value.trim(); 
     if (msg === "") return; 
@@ -39,11 +46,27 @@ sendB.addEventListener('click', () => {
     sendText.value = ""; // Clear input field after sending
 });
 //End
+const muteButton = document.getElementById("muteButton");
+let isMuted = false;
+
+muteButton.addEventListener("click", () => {
+    if (!localStream) return;
+
+    isMuted = !isMuted;
+
+    localStream.getAudioTracks().forEach(track => {
+        track.enabled = !isMuted;
+    });
+
+    muteButton.textContent = isMuted ? "Unmute" : "Mute";
+    muteButton.classList.toggle("unmuted", !isMuted);
+});
 
 //Voice Chat HTML elements event handlers
 voiceChat.addEventListener('click',()=>{
     gcCont.style.display = "none"
     vcCont.style.display = "block"
+    socket.emit("EnteredRoom")
     socket.emit('getVCusers');
     socket.emit("EnterVR")
 })
@@ -74,9 +97,14 @@ socket.on('message', (msg, senderID, username) => {
     if (socket.id === senderID) {
         newText.textContent = msg;
         newText.className = "message sent";
-    } else {
-        newText.textContent = username + ": " + msg;
+    } else {;
         newText.className = "message received";
+        let sendername = document.createElement('span')
+        sendername.classList.add('sender-name')
+        sendername.classList.add('sent')
+        sendername.textContent = username;
+        newText.textContent =  msg;
+        newText.prepend(sendername)
     }
 
     chatMessages.appendChild(newText);
@@ -122,7 +150,7 @@ socket.on('pastMsgs',(msgs,currentUser)=>{
         sendername.textContent = msgDict.Sender;
         newText.textContent =  msgDict.Msg;
         newText.className = "message received";
-        chatMessages.appendChild(sendername)
+        newText.prepend(sendername)
     }
    
     chatMessages.appendChild(newText);
@@ -220,6 +248,37 @@ socket.on('icecandidate',(candidate,peerId)=>{
         });
     }
 })
+socket.on("Fileshared", (fileUrl, fileName,username ) => {
+    console.log(fileUrl)
+    addFileMessage(fileUrl, fileName, false,username);
+});
+
+// Function to display file messages
+function addFileMessage(fileUrl, fileName, isSent = false,username=null) {
+    let messageP = document.createElement('div');
+    let sendernamed
+    const fileLink = document.createElement("a");
+    fileLink.href = fileUrl;
+    fileLink.textContent = `📂 ${fileName}`;
+    fileLink.target = "_blank";
+    messageP.className = "message-container"
+    if(isSent){
+        messageP.className = "message sent"
+    }else{
+        messageP.className = "message received"
+    }    
+    if(isSent == false){
+         sendernamed = document.createElement('span')
+        sendernamed.classList.add('sender-name')
+        sendernamed.classList.add('sent')
+        sendernamed.textContent = username;
+        messageP.appendChild(sendernamed)
+    }
+    messageP.appendChild(fileLink)
+    chatMessages.appendChild(messageP);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+}
 //End
 
 function setUpLocalUserMedia(){
@@ -308,4 +367,16 @@ if (localStream) {
 }
 peers = {}
 }
-//End
+
+async function  uploadFile(file){
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/upload", {
+        method: "POST",
+        body: formData,
+    });
+
+    const data = await response.json();
+  
+}

@@ -6,6 +6,9 @@ const baseRouter = require('./routes/loginR')
 const chatRouter = require('./routes/chatR')
 const checkAuth = require('./routes/auth')
 const session = require('express-session')
+const multer = require('multer')
+const path = require('path')
+
 const app = express()
 const fs = require('fs')
 const privateKey = fs.readFileSync('key.pem', 'utf8');
@@ -26,6 +29,7 @@ var sessionMiddleware = session({
 })
 
 app.use(express.static('public'));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(bodyParser.urlencoded({extended:true}))
 app.use(bodyParser.json())
 app.use(sessionMiddleware)
@@ -37,6 +41,28 @@ app.use('/chat',chatRouter);
 const io =  socketIo(server)
 io.engine.use(sessionMiddleware)
 
+const storage = multer.diskStorage({
+    destination: (req,file,cb)=>{
+        cb(null,"uploads/")
+    },
+    filename: (req,file,cb)=>{
+        cb(null,Date.now()+"-"+file.originalname)
+    }
+})
+const upload = multer({storage:storage})
+
+app.post("/upload",upload.single("file"),(req,res)=>{
+        if(!req.file){
+            res.status(400)
+        }
+        const fileurl = `/uploads/${req.file.filename}`
+        console.log(fileurl)
+        let musers = db.collection('Users')
+        let socketid = musers.find({Name:req.session.username},{projection:{sock_id:1}}).toArray()
+        io.emit("Fileshared",fileurl,req.file.originalname,req.session.username)
+        res.json({fileurl:fileurl,filename:req.file.originalname})
+
+})
 io.use((socket,next)=>{
     var session = socket.request.session;
     
@@ -65,6 +91,9 @@ io.on('connection',async (socket)=>{
         mongoMsgs.insertOne({Msg:msg,Sender:socket.data.username})
     });
 
+    socket.on('getId',()=>{
+        socket.emit('sockid',socket.id)
+    })
     socket.on('getVCusers',()=>{
         let userList = io.sockets.adapter.rooms.get("VoiceRoom")
         if(userList != undefined){
