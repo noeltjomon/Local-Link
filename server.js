@@ -55,10 +55,12 @@ app.post("/upload",upload.single("file"),(req,res)=>{
         if(!req.file){
             res.status(400)
         }
+        let mongoMsgs = db.collection('Messages')
         const fileurl = `/uploads/${req.file.filename}`
         console.log(fileurl)
         let musers = db.collection('Users')
         let socketid = musers.find({Name:req.session.username},{projection:{sock_id:1}}).toArray()
+        mongoMsgs.insertOne({Msg:fileurl,Sender:req.session.username})
         io.emit("Fileshared",fileurl,req.file.originalname,req.session.username)
         res.json({fileurl:fileurl,filename:req.file.originalname})
 
